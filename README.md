@@ -1,25 +1,19 @@
 # Housing-Price-Prediction
-Using Linear Regression to predict housing price
+Using Hybrid Model(Linear Regression and XGBOOST) to predict Housing Price
 # House Price Prediction Streamlit App
 
 ## Overview
-This Streamlit application predicts house prices using a Linear Regression model trained on housing dataset features.
+A machine learning application for predicting house prices using Linear Regression and XGBoost models with an interactive Streamlit interface.
 
 ## Features
-- Interactive web interface for house price prediction
-- Machine learning model with various input parameters
-- Real-time prediction and model performance metrics
+- Interactive house price prediction
+- Multiple machine learning models (Linear Regression, XGBoost, Ensemble)
+- Real-time price prediction
 - Comprehensive data visualizations
+- Model performance metrics
 
 ## Prerequisites
 - Python 3.8+
-- Libraries: 
-  - streamlit
-  - pandas
-  - numpy
-  - scikit-learn
-  - seaborn
-  - matplotlib
 
 ## Installation
 ```bash
@@ -30,10 +24,18 @@ pip install -r requirements.txt
 
 ## Dataset
 - Uses `Housing.csv`
-- Features include area, bedrooms, bathrooms, location characteristics
+- Features include:
+  - Area
+  - Bedrooms
+  - Bathrooms
+  - Location characteristics
+  - Amenities (mainroad, guestroom, basement, etc.)
 
 ## Model Details
-- Algorithm: Linear Regression
+- Algorithms: 
+  - Linear Regression
+  - XGBoost
+  - Ensemble Model (Weighted Average)
 - Preprocessing: 
   - Categorical variable encoding
   - Feature scaling
@@ -41,26 +43,23 @@ pip install -r requirements.txt
 
 ## How to Run
 ```bash
-streamlit run app.py
+streamlit run housing.py
 ```
 
 ## App Sections
 1. Input Parameters Sidebar
-   - Adjust house features interactively
-2. Prediction Display
-   - Shows predicted house price
-3. Model Performance
-   - Displays R-squared score
+2. Price Prediction
+3. Model Performance Metrics
 4. Data Visualizations
    - Correlation Heatmap
    - Price Distribution
    - Area vs Price Scatter Plot
-   - Feature Importance Bar Chart
+   - Model Prediction Plots
+   - Feature Importance Charts
 
 ## Customization
-- Modify `housing.py` to add more features
-- Experiment with different machine learning models
-
+- Modify code to add more features
+- Experiment with model parameters
 
 ## Author
 Pranamya Deshpande
