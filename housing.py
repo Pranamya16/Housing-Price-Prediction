@@ -9,6 +9,7 @@ from sklearn.model_selection import (
 from sklearn.preprocessing import StandardScaler  # used to scale in range 0-1
 from sklearn.metrics import mean_squared_error, r2_score  # count the cost error
 from sklearn.linear_model import LinearRegression
+import xgboost as xgb
 
 st.set_page_config(
     page_title="House Price Prediction",
@@ -53,12 +54,6 @@ x_train, x_test, y_train, y_test = train_test_split(
 scaler = StandardScaler()
 x_train_scaled = scaler.fit_transform(x_train)
 x_test_scaled = scaler.fit_transform(x_test)
-
-
-# train the model
-model = LinearRegression()
-model.fit(x_train_scaled, y_train)
-
 
 # streamlit app
 
@@ -130,23 +125,40 @@ inpu_df = preprocess_data(input_df)  # convert categories into binary values
 # scale user input
 input_scaled = scaler.transform(input_df)
 
-# make prediction
-prediction = model.predict(input_scaled)
+# train the LR model
+model = LinearRegression()
+model.fit(x_train_scaled, y_train)
 
+# Train XGBoost Model
+model_xgb = xgb.XGBRegressor(random_state=42)
+model_xgb.fit(x_train_scaled, y_train)
+
+# Ensemble Prediction Function
+def ensemble_prediction(input_scaled):
+    lr_pred = model.predict(input_scaled)
+    xgb_pred = model_xgb.predict(input_scaled)
+    
+    # Weighted average (60% XGBoost, 40% Linear Regression)
+    ensemble_pred = 0.6 * xgb_pred + 0.4 * lr_pred
+    return ensemble_pred
+
+prediction = ensemble_prediction(input_scaled)
+
+# Add to model performance section
+# Predict on test set
+y_pred_lr = model.predict(x_test_scaled)
+y_pred_xgb = model_xgb.predict(x_test_scaled)
+y_pred_ensemble = ensemble_prediction(x_test_scaled)
+corr = data.corr()
+
+# Compute additional metrics
 st.subheader("Prediction")
 st.write(f"The predicted House Price is: ${prediction[0]:,.2f}")
+st.subheader("Model Performance Comparison")
+st.write(f"Linear Regression R-squared: {r2_score(y_test, y_pred_lr):.2f}")
+st.write(f"XGBoost R-squared: {r2_score(y_test, y_pred_xgb):.2f}")
+st.write(f"Ensemble R-squared: {r2_score(y_test, y_pred_ensemble):.2f}")
 
-# model performance
-y_pred = model.predict(x_test_scaled)
-mse = mean_squared_error(
-    y_test, y_pred
-)  # ytest is the expected answer and ypred is the predicted answer
-r2 = r2_score(y_test, y_pred)
-
-st.subheader("Model Performance")
-st.write(f"R-sqared Score: {r2:.2f}")
-
-corr = data.corr()
 # data Visualization
 st.subheader("Data visualization")
 
@@ -194,8 +206,73 @@ plt.xlabel("Area", fontsize=12)
 plt.ylabel("Price", fontsize=12)
 st.pyplot(plt)
 
+# Linear Regression Plot
+st.write("Linear Regression Predictions")
+plt.figure(figsize=(10, 6))
+sns.regplot(x=y_test, y=y_pred_lr, color='blue', line_kws={'color': 'red'})
+plt.title('Linear Regression Predictions')
+plt.xlabel('Actual Prices')
+plt.ylabel('Predicted Prices')
+st.pyplot(plt)
+
+# XGBoost Plot
+st.write("XGBoost Predictions")
+plt.figure(figsize=(10, 6))
+sns.regplot(x=y_test, y=y_pred_xgb, color='green', line_kws={'color': 'red'})
+plt.title('XGBoost Predictions')
+plt.xlabel('Actual Prices')
+plt.ylabel('Predicted Prices')
+st.pyplot(plt)
+
+# Ensemble Model Plot
+st.write("Ensemble Predictions")
+plt.figure(figsize=(10, 6))
+sns.regplot(x=y_test, y=y_pred_ensemble, color='purple', line_kws={'color': 'red'})
+plt.title('Ensemble Model Predictions')
+plt.xlabel('Actual Prices')
+plt.ylabel('Predicted Prices')
+st.pyplot(plt)
+
+# Add this to the existing Streamlit script, after the existing model training and prediction code
+
+# Scatter plot comparing model predictions
+st.write("Model Prediction Comparison")
+plt.figure(figsize=(12, 6))
+
+# Create a DataFrame with actual and predicted values
+comparison_df = pd.DataFrame({
+    'Actual': y_test,
+    'Linear Regression': y_pred_lr,
+    'XGBoost': y_pred_xgb,
+    'Ensemble': y_pred_ensemble
+})
+
+# Melt the DataFrame for easier plotting with seaborn
+comparison_df_melted = comparison_df.melt(id_vars='Actual', 
+                                          var_name='Model', 
+                                          value_name='Predicted')
+
+# Create a scatter plot with different colors for each model
+sns.scatterplot(data=comparison_df_melted, 
+                x='Actual', 
+                y='Predicted', 
+                hue='Model', 
+                palette='deep')
+
+# Add a perfect prediction line
+plt.plot([y_test.min(), y_test.max()], 
+         [y_test.min(), y_test.max()], 
+         'r--', 
+         label='Perfect Prediction')
+
+plt.title("Model Prediction Comparison", fontsize=16)
+plt.xlabel("Actual House Prices", fontsize=12)
+plt.ylabel("Predicted House Prices", fontsize=12)
+plt.legend(title='Model Types')
+st.pyplot(plt)
+
 # Feature importance (updated for Linear Regression)
-st.write("Important Features for Predicting Price")
+st.write("Linear Regression Feature Importance")
 feature_importance = pd.DataFrame(
     {
         "feature": x.columns,
@@ -207,5 +284,20 @@ plt.figure(figsize=(10, 6))
 sns.barplot(x="importance", y="feature", data=feature_importance, color="steelblue")
 plt.title("Feature Importance for Price Prediction", fontsize=16)
 plt.xlabel("Absolute Coefficient Value", fontsize=12)
+plt.ylabel("Feature", fontsize=12)
+st.pyplot(plt)
+
+
+# XGBoost Feature Importance
+st.write("XGBoost Feature Importance")
+xgb_importance = pd.DataFrame({
+    'feature': x.columns,
+    'importance': model_xgb.feature_importances_
+})
+xgb_importance = xgb_importance.sort_values('importance', ascending=False)
+plt.figure(figsize=(10, 6))
+sns.barplot(x='importance', y='feature', data=xgb_importance, color='red')
+plt.title("XGBoost Feature Importance", fontsize=16)
+plt.xlabel("Feature Importance", fontsize=12)
 plt.ylabel("Feature", fontsize=12)
 st.pyplot(plt)
