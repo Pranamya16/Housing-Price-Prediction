@@ -182,56 +182,37 @@ sns.heatmap(
 plt.title("Correlatin Heatmap", fontsize=16)
 st.pyplot(plt)
 
-
-st.write("Price Distribution")
-plt.figure(figsize=(10, 6))
-sns.histplot(data["price"], kde=True, color="red", edgecolor="black")
-plt.title("Price Distribution")
-plt.xlabel("Price", fontsize=12)
-plt.ylabel("Count", fontsize=12)
-st.pyplot(plt)
-
-# Scatter plot: Area vs Price with regression line
-st.write("Area vs Price")
-plt.figure(figsize=(10, 6))
-sns.regplot(
-    x="area",
-    y="price",
-    data=data,
-    scatter_kws={"alpha": 0.5},
-    line_kws={"color": "red"},
-)
-plt.title("Area vs Price", fontsize=16)
-plt.xlabel("Area", fontsize=12)
-plt.ylabel("Price", fontsize=12)
-st.pyplot(plt)
-
+# Create visualization columns
+viz_col1, viz_col2, viz_col3 = st.columns(3)
 # Linear Regression Plot
-st.write("Linear Regression Predictions")
-plt.figure(figsize=(10, 6))
-sns.regplot(x=y_test, y=y_pred_lr, color='blue', line_kws={'color': 'red'})
-plt.title('Linear Regression Predictions')
-plt.xlabel('Actual Prices')
-plt.ylabel('Predicted Prices')
-st.pyplot(plt)
+with viz_col1:
+    st.write("Linear Regression Predictions")
+    plt.figure(figsize=(10, 6))
+    sns.regplot(x=y_test, y=y_pred_lr, color='blue', line_kws={'color': 'red'})
+    plt.title('Linear Regression Predictions')
+    plt.xlabel('Actual Prices')
+    plt.ylabel('Predicted Prices')
+    st.pyplot(plt)
 
 # XGBoost Plot
-st.write("XGBoost Predictions")
-plt.figure(figsize=(10, 6))
-sns.regplot(x=y_test, y=y_pred_xgb, color='green', line_kws={'color': 'red'})
-plt.title('XGBoost Predictions')
-plt.xlabel('Actual Prices')
-plt.ylabel('Predicted Prices')
-st.pyplot(plt)
+with viz_col2:   
+    st.write("XGBoost Predictions")
+    plt.figure(figsize=(10, 6))
+    sns.regplot(x=y_test, y=y_pred_xgb, color='green', line_kws={'color': 'red'})
+    plt.title('XGBoost Predictions')
+    plt.xlabel('Actual Prices')
+    plt.ylabel('Predicted Prices')
+    st.pyplot(plt)
 
 # Ensemble Model Plot
-st.write("Ensemble Predictions")
-plt.figure(figsize=(10, 6))
-sns.regplot(x=y_test, y=y_pred_ensemble, color='purple', line_kws={'color': 'red'})
-plt.title('Ensemble Model Predictions')
-plt.xlabel('Actual Prices')
-plt.ylabel('Predicted Prices')
-st.pyplot(plt)
+with viz_col3:
+    st.write("Ensemble Predictions")
+    plt.figure(figsize=(10, 6))
+    sns.regplot(x=y_test, y=y_pred_ensemble, color='purple', line_kws={'color': 'red'})
+    plt.title('Ensemble Model Predictions')
+    plt.xlabel('Actual Prices')
+    plt.ylabel('Predicted Prices')
+    st.pyplot(plt)
 
 # Add this to the existing Streamlit script, after the existing model training and prediction code
 
