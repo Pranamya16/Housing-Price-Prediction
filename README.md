@@ -19,8 +19,8 @@ A machine learning application for predicting house prices using Linear Regressi
 
 ## Installation
 ```bash
-git clone https://github.com/Pranamya16/house-price-prediction.git
-cd house-price-prediction
+git clone https://github.com/Pranamya16/House-Price-Prediction.git
+cd House-Price-Prediction
 pip install -r requirements.txt
 ```
 
