@@ -1,6 +1,6 @@
 # Housing-Price-Prediction
-Using Hybrid Model(Linear Regression and XGBOOST) to predict Housing Price
-Clickhere to try: https://housing-price-prediction-pranamya-deshpande.streamlit.app
+Using Hybrid Model(Linear Regression and XGBOOST) to predict Housing Price.
+Click here to try: https://housing-price-prediction-pranamya-deshpande.streamlit.app
 # House Price Prediction Streamlit App
 
 ## Overview
