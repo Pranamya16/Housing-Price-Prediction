@@ -1,278 +1,226 @@
-import streamlit as st  # web app framework
-import pandas as pd  # for data manipulation (reading dataset)
-import numpy as np  # for nbumerical operations
-import seaborn as sns  # for data visualization
-import matplotlib.pyplot as plt  # for data visualization
-from sklearn.model_selection import (
-    train_test_split,
-)  # splits data into training and testing parts
-from sklearn.preprocessing import StandardScaler  # used to scale in range 0-1
-from sklearn.metrics import mean_squared_error, r2_score  # count the cost error
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import r2_score
 from sklearn.linear_model import LinearRegression
 import xgboost as xgb
 
-st.set_page_config(
-    page_title="House Price Prediction",
-)
+# Performance Optimization: Reduce page config overhead
+st.set_page_config(page_title="House Price Prediction", layout="wide")
 
-
-# load the data
+# Caching data loading for improved performance
 @st.cache_data
-def load_data():
+def load_and_preprocess_data():
+    # Load and preprocess data in a single cached function
     data = pd.read_csv("Housing.csv")
+    
+    # Preprocessing
+    categorical_cols = [
+        "mainroad", "guestroom", "basement", "hotwaterheating", 
+        "airconditioning", "prefarea"
+    ]
+    for col in categorical_cols:
+        data[col] = (data[col] == "yes").astype(int)
+    
+    data["furnishingstatus"] = data["furnishingstatus"].map({
+        "furnished": 2, 
+        "semi-furnished": 1, 
+        "unfurnished": 0
+    })
+    
     return data
 
-
-data = load_data()  # loading data in the variable 'data'
-
-
-# Preprocessing the data
-def preprocess_data(df):
-    # Convert categorical variables to numeric
-    df["mainroad"] = df["mainroad"].map({"yes": 1, "no": 0})
-    df["guestroom"] = df["guestroom"].map({"yes": 1, "no": 0})
-    df["basement"] = df["basement"].map({"yes": 1, "no": 0})
-    df["hotwaterheating"] = df["hotwaterheating"].map({"yes": 1, "no": 0})
-    df["airconditioning"] = df["airconditioning"].map({"yes": 1, "no": 0})
-    df["prefarea"] = df["prefarea"].map({"yes": 1, "no": 0})
-    df["furnishingstatus"] = df["furnishingstatus"].map(
-        {"furnished": 2, "semi-furnished": 1, "unfurnished": 0}
-    )
-    return df
-
-
-data = preprocess_data(data)
-
-# Split the data
-x = data.drop("price", axis=1)
-y = data["price"]
-x_train, x_test, y_train, y_test = train_test_split(
-    x, y, test_size=0.2, random_state=42
-)
-
-# scaler the features in the range 0-1
-scaler = StandardScaler()
-x_train_scaled = scaler.fit_transform(x_train)
-x_test_scaled = scaler.fit_transform(x_test)
-
-# streamlit app
-
-st.title("House Price Prediction")
-st.caption("By Pranamya Deshpande")
-
-# User input
-st.sidebar.header("Input Parameters")
-
-
-def user_input_features():
-    area = st.sidebar.slider(
-        "Area", float(x["area"].min()), float(x["area"].max()), float(x["area"].mean())
-    )
-    bedrooms = st.sidebar.slider(
-        "Bedrooms",
-        int(x["bedrooms"].min()),
-        int(x["bedrooms"].max()),
-        int(x["bedrooms"].mean()),
-    )
-    bathrooms = st.sidebar.slider(
-        "Bathrooms",
-        int(x["bathrooms"].min()),
-        int(x["bathrooms"].max()),
-        int(x["bathrooms"].mean()),
-    )
-    stories = st.sidebar.slider(
-        "Stories",
-        int(x["stories"].min()),
-        int(x["stories"].max()),
-        int(x["stories"].mean()),
-    )
-    mainroad = st.sidebar.selectbox("Mainroad", ("yes", "no"))
-    guestroom = st.sidebar.selectbox("Guest Room", ("yes", "no"))
-    basement = st.sidebar.selectbox("Basement", ("yes", "no"))
-    hotwaterheating = st.sidebar.selectbox("Hot Water Heating", ("yes", "no"))
-    airconditioning = st.sidebar.selectbox("Air Conditioning", ("yes", "no"))
-    parking = st.sidebar.slider(
-        "Parking",
-        int(x["parking"].min()),
-        int(x["parking"].max()),
-        int(x["parking"].mean()),
-    )
-    prefarea = st.sidebar.selectbox("Preferred Area", ("yes", "no"))
-    furnishingstatus = st.sidebar.selectbox(
-        "Furnishing Status", ("furnished", "semi-furnished", "unfurnished")
-    )
-    # dictionary where keys are the featurenames and the values are user input
-    features = {
-        "area": area,
-        "bedrooms": bedrooms,
-        "bathrooms": bathrooms,
-        "stories": stories,
-        "mainroad": mainroad,
-        "guestroom": guestroom,
-        "basement": basement,
-        "hotwaterheating": hotwaterheating,
-        "airconditioning": airconditioning,
-        "parking": parking,
-        "prefarea": prefarea,
-        "furnishingstatus": furnishingstatus,
-    }
-    return pd.DataFrame(features, index=[0])
-
-
-input_df = user_input_features()
-inpu_df = preprocess_data(input_df)  # convert categories into binary values
-
-# scale user input
-input_scaled = scaler.transform(input_df)
-
-# train the LR model
-model = LinearRegression()
-model.fit(x_train_scaled, y_train)
-
-# Train XGBoost Model
-model_xgb = xgb.XGBRegressor(random_state=42)
-model_xgb.fit(x_train_scaled, y_train)
-
-# Ensemble Prediction Function
-def ensemble_prediction(input_scaled):
-    lr_pred = model.predict(input_scaled)
-    xgb_pred = model_xgb.predict(input_scaled)
+# Caching model training to avoid recomputation
+@st.cache_resource
+def train_models(x_train_scaled, y_train):
+    # Train models with caching
+    model_lr = LinearRegression()
+    model_xgb = xgb.XGBRegressor(random_state=42)
     
-    # Weighted average (60% XGBoost, 40% Linear Regression)
-    ensemble_pred = 0.6 * xgb_pred + 0.4 * lr_pred
-    return ensemble_pred
+    model_lr.fit(x_train_scaled, y_train)
+    model_xgb.fit(x_train_scaled, y_train)
+    
+    return model_lr, model_xgb
 
-prediction = ensemble_prediction(input_scaled)
+def main():
+    st.title("House Price Prediction")
+    st.caption("By Pranamya Deshpande")
 
-# Add to model performance section
-# Predict on test set
-y_pred_lr = model.predict(x_test_scaled)
-y_pred_xgb = model_xgb.predict(x_test_scaled)
-y_pred_ensemble = ensemble_prediction(x_test_scaled)
-corr = data.corr()
+    # Load and preprocess data
+    data = load_and_preprocess_data()
 
-# Compute additional metrics
-st.subheader("Prediction")
-st.write(f"The predicted House Price is: ${prediction[0]:,.2f}")
-st.subheader("Model Performance Comparison")
-st.write(f"Linear Regression R-squared: {r2_score(y_test, y_pred_lr):.2f}")
-st.write(f"XGBoost R-squared: {r2_score(y_test, y_pred_xgb):.2f}")
-st.write(f"Ensemble R-squared: {r2_score(y_test, y_pred_ensemble):.2f}")
+    # Prepare features and target
+    x = data.drop("price", axis=1)
+    y = data["price"]
 
-# data Visualization
-st.subheader("Data visualization")
+    # Split data
+    x_train, x_test, y_train, y_test = train_test_split(
+        x, y, test_size=0.2, random_state=42
+    )
 
-# setting seaborn style for DV
-sns.set_style("whitegrid")
-sns.set_palette("deep")
+    # Scale features
+    scaler = StandardScaler()
+    x_train_scaled = scaler.fit_transform(x_train)
+    x_test_scaled = scaler.transform(x_test)
 
-# correllation heatmap
-st.write("Corelation Heatmap")
-plt.figure(figsize=(12, 10))
-mask = np.triu(np.ones_like(corr, dtype=bool))
-sns.heatmap(
-    corr,
-    mask=mask,
-    annot=True,
-    cmap="coolwarm",
-    linewidths=0.5,
-    fmt=".2f",
-    square=True,
-)
-plt.title("Correlatin Heatmap", fontsize=16)
-st.pyplot(plt)
+    # Train models
+    model_lr, model_xgb = train_models(x_train_scaled, y_train)
 
-# Create visualization columns
-viz_col1, viz_col2, viz_col3 = st.columns(3)
-# Linear Regression Plot
-with viz_col1:
-    st.write("Linear Regression Predictions")
-    plt.figure(figsize=(10, 6))
-    sns.regplot(x=y_test, y=y_pred_lr, color='blue', line_kws={'color': 'red'})
-    plt.title('Linear Regression Predictions')
-    plt.xlabel('Actual Prices')
-    plt.ylabel('Predicted Prices')
-    st.pyplot(plt)
+    # Create a session state to store user inputs
+    if 'user_inputs' not in st.session_state:
+        st.session_state.user_inputs = {}
 
-# XGBoost Plot
-with viz_col2:   
-    st.write("XGBoost Predictions")
-    plt.figure(figsize=(10, 6))
-    sns.regplot(x=y_test, y=y_pred_xgb, color='green', line_kws={'color': 'red'})
-    plt.title('XGBoost Predictions')
-    plt.xlabel('Actual Prices')
-    plt.ylabel('Predicted Prices')
-    st.pyplot(plt)
+    # User input section
+    st.sidebar.header("Input House Parameters")
+    
+    def get_user_inputs():
+        # Use session state to dynamically update inputs
+        for col in x.columns:
+            if col in ["mainroad", "guestroom", "basement", "hotwaterheating", 
+                       "airconditioning", "prefarea"]:
+                st.session_state.user_inputs[col] = st.sidebar.selectbox(
+                    col.capitalize(), 
+                    options=["yes", "no"],
+                    key=f"{col}_select",
+                    # Use previous value if exists
+                    index=["yes", "no"].index(st.session_state.user_inputs.get(col, "no"))
+                )
+            elif col == "furnishingstatus":
+                st.session_state.user_inputs[col] = st.sidebar.selectbox(
+                    "Furnishing Status", 
+                    options=["furnished", "semi-furnished", "unfurnished"],
+                    key=f"{col}_select",
+                    # Use previous value if exists
+                    index=["furnished", "semi-furnished", "unfurnished"].index(
+                        st.session_state.user_inputs.get(col, "unfurnished")
+                    )
+                )
+            elif col in ["area", "bedrooms", "bathrooms", "stories", "parking"]:
+                st.session_state.user_inputs[col] = st.sidebar.slider(
+                    col.capitalize(), 
+                    float(x[col].min()), 
+                    float(x[col].max()), 
+                    float(st.session_state.user_inputs.get(col, x[col].mean())),
+                    key=f"{col}_slider"
+                )
+        
+        return pd.DataFrame([st.session_state.user_inputs])
 
-# Ensemble Model Plot
-with viz_col3:
-    st.write("Ensemble Predictions")
-    plt.figure(figsize=(10, 6))
-    sns.regplot(x=y_test, y=y_pred_ensemble, color='purple', line_kws={'color': 'red'})
-    plt.title('Ensemble Model Predictions')
-    plt.xlabel('Actual Prices')
-    plt.ylabel('Predicted Prices')
-    st.pyplot(plt)
+    # Get and preprocess user inputs
+    input_df = get_user_inputs()
+    
+    # Preprocess input (convert to same format as training data)
+    processed_input = load_and_preprocess_data().loc[0:0, x.columns].copy()
+    for col, value in st.session_state.user_inputs.items():
+        if col in ["mainroad", "guestroom", "basement", "hotwaterheating", 
+                   "airconditioning", "prefarea"]:
+            processed_input.loc[0, col] = int(value == "yes")
+        elif col == "furnishingstatus":
+            processed_input.loc[0, col] = int({
+                "furnished": 2, 
+                "semi-furnished": 1, 
+                "unfurnished": 0
+            }[value])
+        else:
+            processed_input.loc[0, col] = float(value)
+    
+    # Scale input
+    input_scaled = scaler.transform(processed_input)
 
-# Add this to the existing Streamlit script, after the existing model training and prediction code
+    # Ensemble Prediction
+    def ensemble_prediction(input_scaled):
+        lr_pred = model_lr.predict(input_scaled)
+        xgb_pred = model_xgb.predict(input_scaled)
+        return 0.6 * xgb_pred + 0.4 * lr_pred
 
-# Scatter plot comparing model predictions
-st.write("Model Prediction Comparison")
-plt.figure(figsize=(12, 6))
+    # Prediction
+    prediction = ensemble_prediction(input_scaled)
+    
+    # Create a placeholder for dynamic prediction
+    prediction_placeholder = st.empty()
+    prediction_placeholder.subheader("Predicted House Price")
+    prediction_placeholder.write(f"The predicted House Price is: ${prediction[0]:,.2f}")
 
-# Create a DataFrame with actual and predicted values
-comparison_df = pd.DataFrame({
-    'Actual': y_test,
-    'Linear Regression': y_pred_lr,
-    'XGBoost': y_pred_xgb,
-    'Ensemble': y_pred_ensemble
-})
+    # Performance Metrics
+    st.subheader("Model Performance")
+    
+    # Predict on test set
+    y_pred_lr = model_lr.predict(x_test_scaled)
+    y_pred_xgb = model_xgb.predict(x_test_scaled)
+    y_pred_ensemble = ensemble_prediction(x_test_scaled)
 
-# Melt the DataFrame for easier plotting with seaborn
-comparison_df_melted = comparison_df.melt(id_vars='Actual', 
-                                          var_name='Model', 
-                                          value_name='Predicted')
+    # Metrics display
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Linear Regression R²", f"{r2_score(y_test, y_pred_lr):.2f}")
+    with col2:
+        st.metric("XGBoost R²", f"{r2_score(y_test, y_pred_xgb):.2f}")
+    with col3:
+        st.metric("Ensemble R²", f"{r2_score(y_test, y_pred_ensemble):.2f}")
 
-# Create a scatter plot with different colors for each model
-sns.scatterplot(data=comparison_df_melted, 
-                x='Actual', 
-                y='Predicted', 
-                hue='Model', 
-                palette='deep')
+    # Visualization Section
+    st.subheader("Detailed Model Insights")
 
-# Add a perfect prediction line
-plt.plot([y_test.min(), y_test.max()], 
-         [y_test.min(), y_test.max()], 
-         'r--', 
-         label='Perfect Prediction')
+    # Interactive Feature Importance
+    def plot_feature_importance():
+        combined_importance = pd.DataFrame({
+            'Feature': x.columns,
+            'Importance': 0.4 * np.abs(model_lr.coef_) + 0.6 * model_xgb.feature_importances_
+        }).sort_values('Importance', ascending=False)
+        
+        fig = px.bar(
+            combined_importance, 
+            x='Importance', 
+            y='Feature', 
+            orientation='h',
+            title="Feature Importance Comparison"
+        )
+        st.plotly_chart(fig)
 
-plt.title("Model Prediction Comparison", fontsize=16)
-plt.xlabel("Actual House Prices", fontsize=12)
-plt.ylabel("Predicted House Prices", fontsize=12)
-plt.legend(title='Model Types')
-st.pyplot(plt)
+    # Interactive Scatter Plot
+    def plot_model_comparison():
+        fig = go.Figure()
+        
+        # Add scatter plots for each model
+        fig.add_trace(go.Scatter(
+            x=y_test, y=y_pred_lr, 
+            mode='markers', 
+            name='Linear Regression',
+            marker=dict(color='blue', opacity=0.6)
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=y_test, y=y_pred_xgb, 
+            mode='markers', 
+            name='XGBoost',
+            marker=dict(color='green', opacity=0.6)
+        ))
+        
+        # Perfect prediction line
+        fig.add_trace(go.Scatter(
+            x=[y_test.min(), y_test.max()], 
+            y=[y_test.min(), y_test.max()],
+            mode='lines',
+            name='Perfect Prediction',
+            line=dict(color='red', dash='dot')
+        ))
+        
+        fig.update_layout(
+            title='Model Prediction Comparison',
+            xaxis_title='Actual Prices',
+            yaxis_title='Predicted Prices'
+        )
+        
+        st.plotly_chart(fig)
 
-# Show combined feature importance
-st.write("Combined Feature Importance")
+    # Call visualization functions
+    plot_feature_importance()
+    plot_model_comparison()
 
-# Calculate combined importance (weighted average matching ensemble weights)
-combined_importance = pd.DataFrame({
-    'Feature': x.columns.str.upper(),  # Capitalize feature names
-    'Importance': 0.4 * np.abs(model.coef_) + 0.6 * model_xgb.feature_importances_
-})
-
-# Sort by importance
-combined_importance = combined_importance.sort_values('Importance', ascending=True)
-
-# Create the plot
-plt.figure(figsize=(12, 8))
-sns.barplot(
-    data=combined_importance,
-    x='Importance',
-    y='Feature',
-    color='steelblue'
-)
-plt.title("Ensemble Model Feature Importance", fontsize=16)
-plt.xlabel("Feature Importance Score", fontsize=12)
-plt.ylabel("Feature", fontsize=12)
-st.pyplot(plt)
+# Run the app
+if __name__ == "__main__":
+    main()
