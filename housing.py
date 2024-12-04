@@ -252,33 +252,27 @@ plt.ylabel("Predicted House Prices", fontsize=12)
 plt.legend(title='Model Types')
 st.pyplot(plt)
 
-# Feature importance (updated for Linear Regression)
-st.write("Linear Regression Feature Importance")
-feature_importance = pd.DataFrame(
-    {
-        "feature": x.columns,
-        "importance": np.abs(model.coef_),  # Use absolute values of coefficients
-    }
-)
-feature_importance = feature_importance.sort_values("importance", ascending=False)
-plt.figure(figsize=(10, 6))
-sns.barplot(x="importance", y="feature", data=feature_importance, color="steelblue")
-plt.title("Feature Importance for Price Prediction", fontsize=16)
-plt.xlabel("Absolute Coefficient Value", fontsize=12)
-plt.ylabel("Feature", fontsize=12)
-st.pyplot(plt)
+# Show combined feature importance
+st.write("Combined Feature Importance")
 
-
-# XGBoost Feature Importance
-st.write("XGBoost Feature Importance")
-xgb_importance = pd.DataFrame({
-    'feature': x.columns,
-    'importance': model_xgb.feature_importances_
+# Calculate combined importance (weighted average matching ensemble weights)
+combined_importance = pd.DataFrame({
+    'Feature': x.columns.str.upper(),  # Capitalize feature names
+    'Importance': 0.4 * np.abs(model.coef_) + 0.6 * model_xgb.feature_importances_
 })
-xgb_importance = xgb_importance.sort_values('importance', ascending=False)
-plt.figure(figsize=(10, 6))
-sns.barplot(x='importance', y='feature', data=xgb_importance, color='red')
-plt.title("XGBoost Feature Importance", fontsize=16)
-plt.xlabel("Feature Importance", fontsize=12)
+
+# Sort by importance
+combined_importance = combined_importance.sort_values('Importance', ascending=True)
+
+# Create the plot
+plt.figure(figsize=(12, 8))
+sns.barplot(
+    data=combined_importance,
+    x='Importance',
+    y='Feature',
+    color='steelblue'
+)
+plt.title("Ensemble Model Feature Importance", fontsize=16)
+plt.xlabel("Feature Importance Score", fontsize=12)
 plt.ylabel("Feature", fontsize=12)
 st.pyplot(plt)
