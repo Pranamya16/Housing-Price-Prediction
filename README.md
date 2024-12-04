@@ -53,9 +53,6 @@ streamlit run housing.py
 2. Price Prediction
 3. Model Performance Metrics
 4. Data Visualizations
-   - Correlation Heatmap
-   - Price Distribution
-   - Area vs Price Scatter Plot
    - Model Prediction Plots
    - Feature Importance Charts
 
